@@ -96,6 +96,8 @@ function do_dump() {
   # TARGET: the remote file that is actually uploaded
   SOURCE=db_backup_${now}.$EXTENSION
   TARGET=${SOURCE}
+  EXCLUSION_LIST="'information_schema','mysql', 'performance_schema'"
+  STRICT_DB_LIST=()
 
   # Execute additional scripts for pre processing. For example, uncompress a
   # backup file containing this db backup and a second tar file with the
@@ -119,14 +121,24 @@ function do_dump() {
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
       [ $? -ne 0 ] && return 1
     fi
+
+    # Skip any database in the exclusion list
     for onedb in $DB_NAMES; do
-      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      for excluded in $EXCLUSION_LIST; do
+        [[ $onedb != $excluded ]] && STRICT_DB_LIST+=($onedb)
+      done
+    done
+
+    # finally, do the dump
+    for strict_db in $STRICT_DB_LIST; do
+      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${strict_db} $MYSQLDUMP_OPTS > $workdir/${strict_db}_${now}.sql
       [ $? -ne 0 ] && return 1
+      done
     done
   else
     # just a single command
-    if [[ -n "$DB_NAMES" ]]; then
-      DB_LIST="--databases $DB_NAMES"
+    if [[ -n "$STRICT_DB_LIST" ]]; then
+      DB_LIST="--databases $STRICT_DB_LIST"
     else
       DB_LIST="-A"
     fi
