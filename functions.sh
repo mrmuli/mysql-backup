@@ -126,6 +126,7 @@ function do_dump() {
     for onedb in $DB_NAMES; do
       for excluded in $EXCLUSION_LIST; do
         [[ $onedb != $excluded ]] && STRICT_DB_LIST+=($onedb)
+        [ $? -ne 0 ] && return 1
       done
     done
 
@@ -133,7 +134,6 @@ function do_dump() {
     for strict_db in $STRICT_DB_LIST; do
       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${strict_db} $MYSQLDUMP_OPTS > $workdir/${strict_db}_${now}.sql
       [ $? -ne 0 ] && return 1
-      done
     done
   else
     # just a single command
